@@ -1,10 +1,10 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { ArrowLeft, Copy, Check, ExternalLink, AlertTriangle, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Copy, Check, ExternalLink, AlertTriangle, TrendingUp, Sparkles, RefreshCw } from 'lucide-react';
 import Badge, { qualityToVariant } from '@/components/ui/Badge';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { MatchResult, WarmPathResult } from '@/lib/types';
+import { MatchResult, WarmPathResult, AiAnalysis } from '@/lib/types';
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -24,7 +24,78 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function MatchCard({ match, isExpanded }: { match: MatchResult; isExpanded: boolean }) {
+function AiDraftButton({ target, connection, matchType }: {
+  target: WarmPathResult['target'];
+  connection: MatchResult['connection'];
+  matchType: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const generate = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, connection, matchType }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setDraft(data.draft);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to generate');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (draft) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-[#6B7280]">
+            <Sparkles size={11} className="text-purple-500" />
+            AI-generated intro draft
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={generate} className="text-xs text-[#6B7280] hover:text-[#0D0D0D]">
+              <RefreshCw size={11} />
+            </button>
+            <CopyButton text={draft} />
+          </div>
+        </div>
+        <textarea
+          defaultValue={draft}
+          key={draft}
+          rows={4}
+          className="w-full text-sm border border-purple-200 rounded-lg px-3 py-2.5 text-[#0D0D0D] bg-purple-50 resize-none focus:outline-none focus:border-purple-400 transition-colors"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+      <button
+        onClick={generate}
+        disabled={loading}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors disabled:opacity-60"
+      >
+        {loading ? (
+          <><div className="w-3 h-3 border border-purple-500 border-t-transparent rounded-full animate-spin" />Generating...</>
+        ) : (
+          <><Sparkles size={11} />Generate AI intro draft</>
+        )}
+      </button>
+    </div>
+  );
+}
+
+function MatchCard({ match, target, isExpanded }: { match: MatchResult; target: WarmPathResult['target']; isExpanded: boolean }) {
   const [open, setOpen] = useState(isExpanded);
 
   return (
@@ -86,21 +157,147 @@ function MatchCard({ match, isExpanded }: { match: MatchResult; isExpanded: bool
             <p className="text-sm text-[#0D0D0D]">{match.suggestedNextAction}</p>
           </div>
 
-          {match.introRequestDraft && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="text-xs font-medium text-[#6B7280]">Intro request draft</div>
-                <CopyButton text={match.introRequestDraft} />
-              </div>
-              <textarea
-                defaultValue={match.introRequestDraft}
-                rows={4}
-                className="w-full text-sm border border-[#E5E3DE] rounded-lg px-3 py-2.5 text-[#0D0D0D] bg-white resize-none focus:outline-none focus:border-[#1A1A1A] transition-colors"
-              />
-            </div>
-          )}
+          <AiDraftButton target={target} connection={match.connection} matchType={match.matchType} />
         </div>
       )}
+    </div>
+  );
+}
+
+function AiAnalysisPanel({ target }: { target: WarmPathResult['target'] }) {
+  const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const runAnalysis = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAnalysis({ ...data, generatedAt: new Date().toISOString() });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'AI analysis failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [target]);
+
+  useEffect(() => { runAnalysis(); }, [runAnalysis]);
+
+  if (loading) {
+    return (
+      <div className="bg-white border border-[#E5E3DE] rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles size={15} className="text-purple-500" />
+          <span className="font-medium text-[#0D0D0D]">AI Analysis</span>
+          <span className="text-xs text-[#6B7280]">— generating with Groq...</span>
+        </div>
+        <div className="space-y-2.5">
+          {[80, 60, 90, 50].map((w, i) => (
+            <div key={i} className="h-3 bg-gray-100 rounded animate-pulse" style={{ width: `${w}%` }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white border border-[#E5E3DE] rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles size={15} className="text-purple-500" />
+            <span className="font-medium text-[#0D0D0D]">AI Analysis</span>
+          </div>
+          <button onClick={runAnalysis} className="text-xs text-[#6B7280] hover:text-[#0D0D0D] flex items-center gap-1">
+            <RefreshCw size={11} /> Retry
+          </button>
+        </div>
+        <p className="text-xs text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (!analysis) return null;
+
+  return (
+    <div className="bg-white border border-[#E5E3DE] rounded-2xl p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles size={15} className="text-purple-500" />
+          <span className="font-medium text-[#0D0D0D]">AI Analysis</span>
+          <span className="text-xs text-[#6B7280] bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded">{analysis.track}</span>
+        </div>
+        <button onClick={runAnalysis} className="text-xs text-[#6B7280] hover:text-[#0D0D0D] flex items-center gap-1">
+          <RefreshCw size={11} /> Regenerate
+        </button>
+      </div>
+
+      {/* ICP Score */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-1">
+          <TrendingUp size={14} className="text-[#6B7280] shrink-0" />
+          <span className="text-sm text-[#6B7280]">ICP Fit</span>
+          <ProgressBar value={analysis.icpFitScore} className="flex-1" />
+          <span className="text-sm font-semibold text-[#0D0D0D] w-10 text-right">{analysis.icpFitScore}/100</span>
+        </div>
+      </div>
+
+      {/* Why */}
+      <div>
+        <div className="text-xs font-medium text-[#6B7280] mb-1">ICP assessment</div>
+        <p className="text-sm text-[#0D0D0D] leading-relaxed">{analysis.icpFitReason}</p>
+      </div>
+
+      {/* Pain points */}
+      <div>
+        <div className="text-xs font-medium text-[#6B7280] mb-1">Likely pain points</div>
+        <p className="text-sm text-[#0D0D0D] leading-relaxed">{analysis.likelyPainPoints}</p>
+      </div>
+
+      {/* Why Synopsis */}
+      <div>
+        <div className="text-xs font-medium text-[#6B7280] mb-1">Why Synopsis may matter</div>
+        <p className="text-sm text-[#0D0D0D] leading-relaxed">{analysis.whySynopsisMayMatter}</p>
+      </div>
+
+      {/* Outreach */}
+      <div className="border-t border-[#E5E3DE] pt-4 space-y-3">
+        <div className="text-xs font-medium text-[#6B7280]">Outreach guidance</div>
+
+        <div>
+          <div className="text-xs text-[#9CA3AF] mb-1">Angle</div>
+          <p className="text-sm text-[#0D0D0D] bg-[#F7F7F5] rounded-lg px-3 py-2.5 leading-relaxed">{analysis.outreachAngle}</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs text-[#9CA3AF]">Subject line</div>
+              <CopyButton text={analysis.subjectLine} />
+            </div>
+            <div className="text-sm text-[#0D0D0D] border border-[#E5E3DE] rounded-lg px-3 py-2 bg-white font-medium">
+              {analysis.subjectLine}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs text-[#9CA3AF]">First call hook</div>
+              <CopyButton text={analysis.firstCallHook} />
+            </div>
+            <div className="text-sm text-[#0D0D0D] border border-[#E5E3DE] rounded-lg px-3 py-2 bg-white italic">
+              {analysis.firstCallHook}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -180,8 +377,10 @@ export default function DetailView() {
       </button>
 
       <div className="space-y-5">
+        {/* Target profile */}
         <TargetProfile result={result} />
 
+        {/* Warm path matches */}
         {result.allMatches.length > 0 ? (
           <div>
             <div className="text-sm font-medium text-[#0D0D0D] mb-3">
@@ -189,7 +388,7 @@ export default function DetailView() {
             </div>
             <div className="space-y-2">
               {result.allMatches.map((match, idx) => (
-                <MatchCard key={idx} match={match} isExpanded={idx === 0} />
+                <MatchCard key={idx} match={match} target={result.target} isExpanded={idx === 0} />
               ))}
             </div>
           </div>
@@ -205,57 +404,10 @@ export default function DetailView() {
           </div>
         )}
 
-        <div className="bg-white border border-[#E5E3DE] rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp size={16} className="text-[#6B7280]" />
-              <span className="font-medium text-[#0D0D0D]">ICP Fit Score</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ProgressBar value={result.icpFitScore} className="w-24" />
-              <span className="text-sm font-semibold text-[#0D0D0D]">{result.icpFitScore}/100</span>
-            </div>
-          </div>
-          <p className="text-sm text-[#6B7280]">{result.icpFitReason}</p>
-        </div>
+        {/* AI Analysis — always shown, loads on mount */}
+        <AiAnalysisPanel target={result.target} />
 
-        {result.warmPathQuality === 'None' && result.fallbackOutreachAngle && (
-          <div className="bg-white border border-[#E5E3DE] rounded-2xl p-5 space-y-4">
-            <div className="font-medium text-[#0D0D0D]">Strategic Cold Outreach Suggestion</div>
-
-            <div>
-              <div className="text-xs font-medium text-[#6B7280] mb-1.5">Outreach angle</div>
-              <p className="text-sm text-[#0D0D0D] bg-[#F7F7F5] rounded-lg px-3 py-2.5 leading-relaxed">
-                {result.fallbackOutreachAngle}
-              </p>
-            </div>
-
-            {result.suggestedSubjectLine && (
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="text-xs font-medium text-[#6B7280]">Suggested subject line</div>
-                  <CopyButton text={result.suggestedSubjectLine} />
-                </div>
-                <div className="text-sm text-[#0D0D0D] border border-[#E5E3DE] rounded-lg px-3 py-2.5 bg-white">
-                  {result.suggestedSubjectLine}
-                </div>
-              </div>
-            )}
-
-            {result.suggestedFirstCallHook && (
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="text-xs font-medium text-[#6B7280]">First call hook</div>
-                  <CopyButton text={result.suggestedFirstCallHook} />
-                </div>
-                <div className="text-sm text-[#0D0D0D] border border-[#E5E3DE] rounded-lg px-3 py-2.5 bg-white italic">
-                  {result.suggestedFirstCallHook}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
+        {/* Data gaps */}
         {result.dataGaps.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-2">
@@ -276,6 +428,7 @@ export default function DetailView() {
           </div>
         )}
 
+        {/* Disclaimer */}
         <div className="text-xs text-[#9CA3AF] bg-white border border-[#E5E3DE] rounded-lg px-4 py-3 leading-relaxed">
           Connection strength measures usefulness. Evidence confidence measures how reliable the data is. A strong-looking path with low confidence still needs review. This tool does not prove that two people know each other — same-company matches require human confirmation before requesting introductions.
         </div>

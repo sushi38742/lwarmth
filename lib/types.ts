@@ -59,6 +59,18 @@ export type MatchType =
   | 'No Known Warm Path'
   | 'Needs Data';
 
+export interface AiAnalysis {
+  icpFitScore: number;
+  icpFitReason: string;
+  track: string;
+  likelyPainPoints: string;
+  outreachAngle: string;
+  subjectLine: string;
+  firstCallHook: string;
+  whySynopsisMayMatter: string;
+  generatedAt: string;
+}
+
 export interface WarmPathResult {
   id: string;
   target: NormalizedTarget;
@@ -72,6 +84,7 @@ export interface WarmPathResult {
   fallbackOutreachAngle: string | null;
   suggestedSubjectLine: string | null;
   suggestedFirstCallHook: string | null;
+  aiAnalysis?: AiAnalysis;
 }
 
 export interface MatchResult {
