@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export default function PasswordGate() {
   const { dispatch } = useStore();
@@ -15,33 +15,31 @@ export default function PasswordGate() {
       dispatch({ type: 'SET_AUTH', payload: true });
       dispatch({ type: 'SET_STEP', payload: 1 });
     } else {
-      setError('Incorrect password. Please try again.');
+      setError('Incorrect password.');
       setPassword('');
     }
   };
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl border border-[#E5E3DE] shadow-sm p-8 w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="w-10 h-10 bg-[#1A1A1A] rounded-xl mx-auto mb-4 flex items-center justify-center">
-            <span className="text-white text-sm font-bold">WP</span>
+      <div className="bg-white rounded-3xl border border-[#E5E3DE] shadow-sm p-10 w-full max-w-md">
+        <div className="mb-10 text-center">
+          <div className="w-14 h-14 bg-[#1A1A1A] rounded-2xl mx-auto mb-5 flex items-center justify-center">
+            <span className="text-white text-base font-bold">WP</span>
           </div>
-          <h1 className="text-xl font-semibold text-[#0D0D0D]">Warm Path Finder</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Synopsis internal GTM tool</p>
+          <h1 className="text-2xl font-semibold text-[#0D0D0D]">Warm Path Finder</h1>
+          <p className="text-sm text-[#6B7280] mt-2">Synopsis internal GTM</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-[#0D0D0D] mb-1.5">
-              Access Password
-            </label>
+            <label className="block text-sm font-medium text-[#0D0D0D] mb-2">Access password</label>
             <div className="relative">
               <input
                 type={showPw ? 'text' : 'password'}
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(''); }}
-                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all pr-10 ${
+                className={`w-full px-4 py-3 rounded-xl border text-base outline-none transition-all pr-12 ${
                   error ? 'border-red-300 focus:border-red-400' : 'border-[#E5E3DE] focus:border-[#1A1A1A]'
                 }`}
                 placeholder="Enter password"
@@ -50,25 +48,23 @@ export default function PasswordGate() {
               <button
                 type="button"
                 onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {error && <p className="text-xs text-red-500 mt-1.5">{error}</p>}
+            {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
           </div>
 
           <button
             type="submit"
-            className="w-full bg-[#1A1A1A] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#333] transition-colors"
+            className="w-full bg-[#1A1A1A] text-white rounded-xl py-3 text-base font-medium hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
           >
-            Enter
+            Enter <ArrowRight size={16} />
           </button>
         </form>
 
-        <p className="text-xs text-center text-gray-400 mt-6">
-          Authorized users only. Internal use only.
-        </p>
+        <p className="text-xs text-center text-gray-400 mt-8">Authorized users only.</p>
       </div>
     </div>
   );
