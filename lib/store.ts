@@ -52,7 +52,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const saved = sessionStorage.getItem('wpf-state');
         if (saved) return JSON.parse(saved) as AppState;
-      } catch {}
+      } catch (_e) {}
     }
     return init;
   });
@@ -60,13 +60,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       sessionStorage.setItem('wpf-state', JSON.stringify(state));
-    } catch {}
+    } catch (_e) {}
   }, [state]);
 
-  return (
-    <StoreContext.Provider value={{ state, dispatch }}>
-      {children}
-    </StoreContext.Provider>
+  return React.createElement(
+    StoreContext.Provider,
+    { value: { state, dispatch } },
+    children
   );
 }
 
